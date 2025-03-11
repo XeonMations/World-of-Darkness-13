@@ -568,8 +568,8 @@
 /obj/item/ammo_box/magazine/internal/vampire/sniper
 	name = "sniper rifle internal magazine"
 	desc = "Oh god, this shouldn't be here"
-	ammo_type = /obj/item/ammo_casing/vampire/c556mm
-	caliber = CALIBER_556
+	ammo_type = /obj/item/ammo_casing/vampire/c50
+	caliber = CALIBER_50
 	max_ammo = 5
 	multiload = TRUE
 
@@ -599,7 +599,7 @@
 	zoom_amt = 10 //Long range, enough to see in front of you, but no tiles behind you.
 	zoom_out_amt = 5
 	slot_flags = ITEM_SLOT_BACK
-	projectile_damage_multiplier = 1.5
+	projectile_damage_multiplier = 2 //140 damage. Nice.
 	actions_types = list()
 	masquerade_violating = TRUE
 	cost = 250
@@ -708,25 +708,39 @@
 	icon = 'code/modules/wod13/weapons.dmi'
 	onflooricon = 'code/modules/wod13/onfloor.dmi'
 	w_class = WEIGHT_CLASS_SMALL
-	var/active = FALSE
 	masquerade_violating = TRUE
+	var/active = FALSE
+	var/explode_timer
 
 /obj/item/molotov/throw_impact(atom/hit_atom, datum/thrownthing/throwingdatum)
+	. = ..()
 	call_dharma("grief", throwingdatum.thrower)
-	for(var/turf/open/floor/F in range(2, hit_atom))
-		if(F)
-			new /obj/effect/decal/cleanable/gasoline(F)
-	if(active)
-		new /obj/effect/fire(get_turf(hit_atom))
-	playsound(get_turf(hit_atom), 'code/modules/wod13/sounds/explode.ogg', 100, TRUE)
-	qdel(src)
-	..()
+	explode()
 
 /obj/item/molotov/attackby(obj/item/I, mob/user, params)
 	if(I.get_temperature() && !active)
-		active = TRUE
-		log_bomber(user, "has primed a", src, "for detonation")
-		icon_state = "molotov_flamed"
+		activate()
+
+/obj/item/molotov/proc/activate(mob/user)
+	active = TRUE
+	log_bomber(user, "has primed a", src, "for detonation")
+	icon_state = "molotov_flamed"
+
+	explode_timer = addtimer(CALLBACK(src, PROC_REF(explode)), rand(15 SECONDS, 45 SECONDS), TIMER_STOPPABLE | TIMER_DELETE_ME)
+
+/obj/item/molotov/proc/explode()
+	deltimer(explode_timer)
+
+	var/atom/explode_location = get_turf(src)
+
+	for(var/turf/open/floor/floor in range(2, explode_location))
+		new /obj/effect/decal/cleanable/gasoline(floor)
+
+	if(active)
+		new /obj/effect/fire(explode_location)
+
+	playsound(explode_location, 'code/modules/wod13/sounds/explode.ogg', 100, TRUE)
+	qdel(src)
 
 /obj/item/vampire_flamethrower
 	name = "flamethrower"
